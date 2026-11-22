@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛕</text></svg>">
+<title>Không Gian Chùa 3D — Tịnh Tâm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+
+<!--
+  IMPORTMAP — Three.js r160
+  ════════════════════════════════════════════════════════════
+  Mặc định dùng jsDelivr CDN (nhanh, ổn định hơn unpkg).
+  Nếu muốn dùng file LOCAL, xem README.md phần "Chạy offline".
+-->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./libs/three.module.js",
+    "three/addons/": "./libs/addons/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="loading">
+  <div class="loader-title">Không Gian Chùa</div>
+  <div class="loader-sub">Tịnh tâm · An lạc</div>
+  <div class="loader-spin"></div>
+</div>
+
+<div id="infoPanel">
+  <button id="infoToggle">▾</button>
+  <h1>Không Gian Chùa</h1>
+  <div class="subtitle">Tịnh Tâm · An Lạc</div>
+  <div id="infoBody">
+    <div class="keys">
+      <div class="row"><span class="kbd">W A S D</span> Di chuyển</div>
+      <div class="row"><span class="kbd">Chuột</span> Xoay camera</div>
+      <div class="row"><span class="kbd">Lăn</span> Phóng to / thu nhỏ</div>
+      <div class="row"><span class="kbd">E</span> Ngồi / Đứng</div>
+      <div class="row"><span class="kbd">Space</span> Gõ mõ</div>
+      <div class="row"><span class="kbd">Click</span> Đi tới điểm</div>
+    </div>
+  </div>
+</div>
+
+<div id="controlPanel">
+  <div class="ctrl-group">
+    <button class="ctrl-btn active" data-camera="third">Theo nhân vật</button>
+    <button class="ctrl-btn" data-camera="overview">Toàn cảnh</button>
+    <button class="ctrl-btn" data-camera="first">Góc 1</button>
+  </div>
+  <div class="ctrl-group">
+    <button class="ctrl-btn" id="qualityToggle">Đồ họa: Cao</button>
+  </div>
+  <div class="ctrl-group">
+    <button class="ctrl-btn" id="tpCourt">Ra sân</button>
+    <button class="ctrl-btn" id="tpHall">Vào chánh điện</button>
+  </div>
+  <div class="ctrl-group">
+    <button class="ctrl-btn icon-only" id="audioToggle" title="Bật/Tắt âm thanh">🔊</button>
+<button class="ctrl-btn icon-only" id="musicToggle" title="Bật/Tắt nhạc nền">🎵</button>
+  </div>
+</div>
+
+<div id="actionDock">
+  <button class="action-btn" id="btnSit"><span class="icon">🧘</span><span>Ngồi/Đứng</span></button>
+  <button class="action-btn" id="btnBow"><span class="icon">🙏</span><span>Lạy Phật</span></button>
+  <button class="action-btn" id="btnMeditate"><span class="icon">☸️</span><span>Thiền</span></button>
+  <button class="action-btn" id="btnChant"><span class="icon">📖</span><span>Tụng Kinh</span></button>
+  <button class="action-btn" id="btnIncense"><span class="icon">🕯️</span><span>Thắp Hương</span></button>
+  <button class="action-btn" id="btnOffer"><span class="icon">🌺</span><span>Dâng Lễ</span></button>
+</div>
+
+<div id="prompt"></div>
+
+<div id="meditationOverlay">
+  <div class="timer" id="medTimer">05:00</div>
+  <div class="breath-wrap">
+    <div class="breath-circle"></div>
+    <div class="breath-label" id="breathLabel">Hít vào</div>
+  </div>
+  <div class="meditation-info">Thiền tĩnh · An trú trong hiện tại</div>
+  <button class="end-btn" id="medEndBtn">Kết thúc thiền</button>
+</div>
+
+<div class="modal" id="meditationModal">
+  <div class="modal-content">
+    <h2>Thiền Tĩnh Tọa</h2>
+    <div class="modal-sub">Chọn thời gian thiền</div>
+    <div class="modal-btns">
+      <button class="modal-btn" data-duration="60">1 phút <span class="sub">Sơ tâm</span></button>
+      <button class="modal-btn" data-duration="180">3 phút <span class="sub">An định</span></button>
+      <button class="modal-btn" data-duration="300">5 phút <span class="sub">Tĩnh lặng</span></button>
+      <button class="modal-btn" data-duration="0">Tự do <span class="sub">Không giới hạn</span></button>
+    </div>
+    <button class="modal-close" data-close="meditationModal">Hủy</button>
+  </div>
+</div>
+
+<div id="chantingPanel">
+  <h3>Tụng Kinh · Niệm Phật</h3>
+  <div class="chant-sub">Gõ phím Space hoặc nhấn nút để gõ mõ</div>
+  <div class="chant-select" id="chantSelect">
+    <button class="chant-select-btn active" data-chant="niemphat">Niệm Phật</button>
+    <button class="chant-select-btn" data-chant="batnha">Bát Nhã</button>
+    <button class="chant-select-btn" data-chant="samhoi">Sám Hối</button>
+  </div>
+  <div class="chant-text" id="chantText"></div>
+  <button class="chant-tap" id="chantTapBtn">🔔 GÕ MÕ (Space)</button>
+  <button class="chant-close" id="chantClose">Đóng</button>
+</div>
+
+<div class="modal" id="offeringModal">
+  <div class="modal-content">
+    <h2>Dâng Lễ Vật</h2>
+    <div class="modal-sub">Chọn lễ vật thanh tịnh dâng lên Phật</div>
+    <div id="offeringGrid">
+      <div class="offering-item" data-offering="flower"><span class="icon">🪷</span><span class="name">Hoa Sen</span></div>
+      <div class="offering-item" data-offering="candle"><span class="icon">🕯️</span><span class="name">Đèn Nến</span></div>
+      <div class="offering-item" data-offering="fruit"><span class="icon">🍎</span><span class="name">Mâm Ngũ Quả</span></div>
+      <div class="offering-item" data-offering="water"><span class="icon">💧</span><span class="name">Nước Thanh Tịnh</span></div>
+    </div>
+    <button class="modal-close" data-close="offeringModal">Đóng</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Phát hiện lỗi tải module -->
+<script>
+  window.__gameBooted = false;
+  setTimeout(() => {
+    if (window.__gameBooted) return;
+    const loading = document.getElementById('loading');
+    if (!loading) return;
+    loading.innerHTML = `
+      <div style="max-width: 520px; padding: 40px; text-align: center; font-family: sans-serif;">
+        <h2 style="color: #c44; margin-bottom: 16px;">Không tải được thư viện Three.js</h2>
+        <p style="color: #666; line-height: 1.6;">
+          Có thể do mạng chặn CDN hoặc cấu hình importmap sai.
+        </p>
+        <p style="color: #666; line-height: 1.6; margin-top: 12px;">
+          <strong>Cách khắc phục:</strong><br>
+          1. Kiểm tra kết nối mạng<br>
+          2. Mở DevTools (F12) → Console, xem lỗi màu đỏ<br>
+          3. Hoặc chuyển sang dùng local libs (xem README.md)
+        </p>
+      </div>
+    `;
+  }, 12000);
+</script>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
