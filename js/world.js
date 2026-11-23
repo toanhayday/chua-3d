@@ -38,7 +38,7 @@ export function buildWorld() {
   _buddha(g); _altar(g); _incense(g); _woodenFish(g);
   _candles(g); _offerDecor(g); _cushions(g);
   _trees(g); _ponds(g); _lanterns(g); _gate(g);
-_vegetableGarden(g); _fishPond(g);
+_vegetableGarden(g); _fishPond(g);  _modernHouse(g);
 }
 
 /* ═══════════ GROUND (pixel tiles) ═══════════ */
@@ -592,6 +592,164 @@ function _makeLantern(parent, x, z) {
   g.position.set(x, 0, z);
   parent.add(g);
   addCircleObstacle(x, z, 0.4);
+}
+/* ═══════════════════════════════════════════════════════════
+   HIỆN ĐẠI VILLA (Căn nhà trong ảnh)
+   ═══════════════════════════════════════════════════════════ */
+function _modernHouse(parent) {
+  var g = new THREE.Group();
+  
+  var whiteMat = toonMat(0xf8f8f8);
+  var roofMat = toonMat(0x4a5058);
+  var woodMat = toonMat(0x8a6040);
+  var glassMat = toonMat(0x1a2a3a);
+  var grassMat = toonMat(0x88c060);
+  var stoneMat = toonMat(0xd0d0d0);
+
+  // 1. Bãi cỏ nền
+  var lawn = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 16), grassMat);
+  lawn.position.set(0, 0.05, 0);
+  lawn.receiveShadow = true;
+  g.add(lawn);
+
+  // 2. Móng nhà (sân thượng)
+  var patio = new THREE.Mesh(new RoundedBoxGeometry(14, 0.6, 10, 2, 0.1), stoneMat);
+  patio.position.set(0, 0.4, -2);
+  patio.receiveShadow = true; patio.castShadow = true;
+  g.add(patio);
+  addOutline(patio, { thickness: 0.02 });
+
+  // 3. Tường nhà chính
+  var walls = new THREE.Mesh(new RoundedBoxGeometry(12, 3.5, 8, 2, 0.2), whiteMat);
+  walls.position.set(0, 2.45, -3);
+  walls.castShadow = true;
+  g.add(walls);
+  addOutline(walls, { thickness: 0.025 });
+
+  // 4. Mái nhà (Chóp 4 cạnh)
+  var roof = new THREE.Mesh(new THREE.ConeGeometry(10, 1.8, 4), roofMat);
+  roof.rotation.y = Math.PI / 4;
+  roof.position.set(0, 5.1, -3);
+  roof.castShadow = true;
+  g.add(roof);
+  addOutline(roof, { thickness: 0.035 });
+
+  // Diềm mái
+  var eave = new THREE.Mesh(new THREE.BoxGeometry(12.4, 0.15, 8.4), roofMat);
+  eave.position.set(0, 4.2, -3);
+  g.add(eave);
+
+  // 5. Cửa kính lớn (Mặt tiền)
+  var door = new THREE.Mesh(new THREE.BoxGeometry(4.5, 2.6, 0.1), glassMat);
+  door.position.set(1.5, 1.9, 1.01);
+  g.add(door);
+  
+  // Khung cửa gỗ
+  [-0.5, 3.5].forEach(function(x) {
+    var frame = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.7, 0.15), woodMat);
+    frame.position.set(x, 1.9, 1.05);
+    g.add(frame);
+  });
+
+  // 6. Cửa vòm bên hông (như trong ảnh)
+  var arch = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.5, 2), glassMat);
+  arch.position.set(-6.01, 1.85, -2);
+  g.add(arch);
+  
+  var archTop = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.1, 16, 1, false, 0, Math.PI), whiteMat);
+  archTop.rotation.z = Math.PI / 2;
+  archTop.rotation.x = Math.PI / 2;
+  archTop.position.set(-6, 3.1, -2);
+  g.add(archTop);
+
+  // 7. Giàn gỗ Pergola (bên trái sân)
+  for (var i = 0; i < 4; i++) {
+    var beam = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 4), woodMat);
+    beam.position.set(-4.5 + i * 1, 3.2, 2);
+    beam.castShadow = true;
+    g.add(beam);
+  }
+  var pergolaRoof = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.1, 4), toonMat(0x9a7050, {transparent: true, opacity: 0.5}));
+  pergolaRoof.position.set(-3, 3.3, 2);
+  g.add(pergolaRoof);
+
+  // Cột chống Pergola
+  [-5.5, -0.5].forEach(function(x) {
+    var post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 3.2, 6), woodMat);
+    post.position.set(x, 1.6, 3.8);
+    g.add(post);
+  });
+
+  // 8. Bậc thang dẫn lên sân thượng
+  for (var j = 0; j < 4; j++) {
+    var step = new THREE.Mesh(new RoundedBoxGeometry(6, 0.15, 0.6, 2, 0.05), stoneMat);
+    step.position.set(0, 0.15 + j * 0.15, 4.5 - j * 0.5);
+    step.castShadow = true; step.receiveShadow = true;
+    g.add(step);
+    addOutline(step, { thickness: 0.01 });
+  }
+
+  // 9. Lối đi lát đá (Stepping stones)
+  for (var k = 0; k < 5; k++) {
+    var pathStone = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 6), stoneMat);
+    pathStone.position.set(0, 0.1, 6.5 + k * 1.5);
+    pathStone.rotation.y = Math.random() * Math.PI;
+    g.add(pathStone);
+  }
+
+  // 10. Hàng rào trắng bao quanh
+  var fenceGeo = new RoundedBoxGeometry(0.2, 1.2, 1.8, 2, 0.05);
+  var fencePositions = [
+    [-10, 0], [-8, 0], [-6, 0], [-4, 0], [-2, 0], [0, 0], [2, 0], [4, 0], [6, 0], [8, 0], [10, 0], // Hàng trước
+    [-10, -8], [-10, -6], [-10, -4], [-10, -2], [-10, 0], // Hàng trái
+    [10, -8], [10, -6], [10, -4], [10, -2], [10, 0] // Hàng phải
+  ];
+
+  fencePositions.forEach(function(pos) {
+    var fence = new THREE.Mesh(fenceGeo, whiteMat);
+    // Xoay hàng rào hông
+    if (pos[0] === -10 || pos[0] === 10) {
+      fence.rotation.y = Math.PI / 2;
+      fence.position.set(pos[0], 0.6, pos[1] + 0.9);
+    } else {
+      fence.position.set(pos[0], 0.6, 8);
+    }
+    g.add(fence);
+    addOutline(fence, { thickness: 0.015 });
+  });
+
+  // 11. Cây cối trang trí
+  // Cây hoa màu tím (bên trái)
+  var pTree = new THREE.Group();
+  var pTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 2, 6), woodMat);
+  pTrunk.position.y = 1;
+  pTree.add(pTrunk);
+  var pLeaf = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), toonMat(0xc060a0));
+  pLeaf.position.y = 2.2;
+  pTree.add(pLeaf);
+  pTree.position.set(-5, 0, 1);
+  g.add(pTree);
+
+  // Cây xanh nhỏ (bên phải)
+  var gTree = new THREE.Group();
+  var gTrunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.15, 1.5, 6), woodMat);
+  gTrunk.position.y = 0.75;
+  gTree.add(gTrunk);
+  var gLeaf = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 6), toonMat(0x70b050));
+  gLeaf.position.y = 1.8;
+  gTree.add(gLeaf);
+  gTree.position.set(5, 0, 2);
+  g.add(gTree);
+
+  // Đặt nhà ở khu đất trống phía bên trái chùa
+  g.position.set(-22, 0, -12);
+  parent.add(g);
+
+  // Thêm va chạm (không cho nhân vật đi xuyên qua nhà)
+  addBoxObstacle(-22, -15, 12, 8);       // Tường nhà
+  addBoxObstacle(-22, -14, 14, 10);      // Sân thượng
+  addBoxObstacle(-32, -10, 0.5, 18);     // Hàng rào trái
+  addBoxObstacle(-12, -10, 0.5, 18);     // Hàng rào phải
 }
 /* ═══════════════════════════════════════════════════════════
    VƯỜN RAU (Vegetable Garden)
