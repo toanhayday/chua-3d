@@ -1,5 +1,5 @@
 /**
- * state.js - Quản lý trạng thái toàn cục và va chạm bản đồ
+ * state.js - Shared game state & world constants
  */
 export const G = {
   scene: null, camera: null, renderer: null, controls: null,
@@ -12,7 +12,7 @@ export const G = {
     walking: false, sitting: false, bowing: false, bowProgress: 0,
     walkPhase: 0, time: 0, poseTargets: {},
     bowQueue: 0, bowTimer: 0,
-    bowBodyRot: 0, bowHipsY: 0.7, bowLegBend: 0,
+    bowBodyRot: 0, bowHipsY: 0.42, bowLegBend: 0,
     bowOnComplete: null
   },
   seatedCushion: -1,
@@ -21,7 +21,7 @@ export const G = {
   chantActive: false, currentChant: 'niemphat', chantLineIndex: 0,
   incenseLit: false, offeredItems: {},
   cameraMode: 'third', clickTargetPos: null,
-  mobileInput: { x: 0, y: 0 } // Thêm cho Joystick
+  mobileInput: { x: 0, y: 0 } // Dành cho Joystick
 };
 
 export const PLAT = { y: 0.3, w: 15, d: 11, z: -10 };
@@ -32,41 +32,18 @@ export function inTemple() {
   return pz < PLAT.z + PLAT.d / 2 + 0.5 && pz > PLAT.z - PLAT.d / 2 - 1;
 }
 
-/**
- * Tính độ cao mặt đất (dùng cho bậc tam cấp)
- */
-export function getGroundY(x, z) {
-  const inT = Math.abs(x) < PLAT.w / 2 - 0.2 && z < PLAT.z + PLAT.d / 2 && z > PLAT.z - PLAT.d / 2;
-  if (inT) {
-    const frontEdge = PLAT.z + PLAT.d / 2;
-    if (z > frontEdge - 1.6) {
-      return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6));
-    }
-    return PLAT.y;
-  }
-  // Bậc thang phía trước
-  const onSteps = Math.abs(x) < 2.6 && z > PLAT.z + PLAT.d / 2 && z < PLAT.z + PLAT.d / 2 + 2;
-  if (onSteps) {
-    const frontEdge = PLAT.z + PLAT.d / 2;
-    return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6 + 0.2));
-  }
-  return 0;
-}
-
-/**
- * Kiểm tra va chạm (Mở rộng 200x200 và chặn sông)
- */
+// ═══════════ CẬP NHẬT CHO BẢN ĐỒ 200x200 VÀ SÔNG NƯỚC ═══════════
 export function checkCollision(x, z, radius = 0.42) {
-  // 1. Kiểm tra giới hạn bản đồ 200x200
+  // 1. Giới hạn bản đồ 200x200
   if (Math.abs(x) > 100 || Math.abs(z) > 100) return true;
 
   // 2. Chặn không cho rơi xuống sông (Sông nằm ngang ở Z = 30, rộng 16m)
   const RIVER_Z = 30;
   const RIVER_WIDTH = 16;
-  if (z > RIVER_Z - RIVER_WIDTH / 2 && z < RIVER_Z + RIVER_WIDTH / 2) {
+  if (z > RIVER_Z - RIVER_WIDTH/2 && z < RIVER_Z + RIVER_WIDTH/2) {
     // Ngoại trừ khu vực Cầu gỗ (X từ -4 đến 4)
     if (x < -4 || x > 4) {
-      return true;
+      return true; 
     }
   }
 
@@ -84,6 +61,23 @@ export function checkCollision(x, z, radius = 0.42) {
     }
   }
   return false;
+}
+
+export function getGroundY(x, z) {
+  // Độ cao bậc tam cấp Chùa
+  const inT = Math.abs(x) < PLAT.w / 2 - 0.2 && z < PLAT.z + PLAT.d / 2 && z > PLAT.z - PLAT.d / 2;
+  if (inT) {
+    const frontEdge = PLAT.z + PLAT.d / 2;
+    if (z > frontEdge - 1.6) {
+      return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6));
+    }
+    return PLAT.y;
+  }
+  // Độ cao cầu gỗ (Cầu nằm ở Z = 30, cao 0.5m)
+  if (Math.abs(x) <= 4 && z > 21 && z < 39) {
+    return 0.5; 
+  }
+  return 0;
 }
 
 export function addBoxObstacle(x, z, w, d) { G.obstacles.push({ type: 'box', x, z, w, d }); }

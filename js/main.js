@@ -15,7 +15,7 @@ import { bindUI, setCameraMode, updatePrompt, fpState, showToast } from './ui.js
 // Extra Systems
 import { initPokemons, updatePokemons } from './pokemon.js';
 import { initMultiplayer, updateMultiplayer } from './multiplayer.js';
-import { updateFish } from './world.js'; 
+
 
 // Harvest Moon Systems
 import { EventBus } from './events.js';
@@ -233,7 +233,6 @@ initMobileControls(); // <-- Thêm dòng này
     // 2. Cập nhật sinh vật & môi trường
     updatePokemons(dt, elapsed);
     updateMultiplayer(dt, elapsed);
-    updateFish(dt, elapsed);
 // Cập nhật môi trường (nến, nước)
 updateEnvironmentAnimations(elapsed);
 EnvironmentManager.update(dt); // Từ environment.js
