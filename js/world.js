@@ -38,7 +38,7 @@ export function buildWorld() {
   _buddha(g); _altar(g); _incense(g); _woodenFish(g);
   _candles(g); _offerDecor(g); _cushions(g);
   _trees(g); _ponds(g); _lanterns(g); _gate(g);
-_vegetableGarden(g); _fishPond(g);  _modernHouse(g);
+_vegetableGarden(g); _fishPond(g);  _modernHouse(g); _modernHouse2(g);  // <-- THÊM DÒNG NÀY: Gọi Nhà 2 (phía sau chùa)
 }
 
 /* ═══════════ GROUND (pixel tiles) ═══════════ */
@@ -597,6 +597,205 @@ function _makeLantern(parent, x, z) {
    HIỆN ĐẠI VILLA (Căn nhà trong ảnh)
    ═══════════════════════════════════════════════════════════ */
 function _modernHouse(parent) {
+  var g = new THREE.Group();
+
+  // --- VẬT LIỆU ---
+  var whiteMat   = toonMat(0xf8f8f8); 
+  var creamMat   = toonMat(0xebe3d5); 
+  var floorMat   = toonMat(0xf2e6d0); 
+  var roofMat    = toonMat(0x4a5058); 
+  var woodMat    = toonMat(0x8a6040); 
+  var woodLight  = toonMat(0xc29b6e); 
+  var glassMat   = toonMat(0x1a2a3a); 
+  var grassMat   = toonMat(0x88c060); 
+  var hedgeMat   = toonMat(0x3a6e24); 
+  var stoneMat   = toonMat(0xd0d0d0); 
+  var sofaGrey   = toonMat(0x5c5c5c); 
+  var bedMat     = toonMat(0xd9cbb8); 
+  var carOrange  = toonMat(0xd98a26); 
+  var carBrown   = toonMat(0x4d3b32); 
+  var tireMat    = toonMat(0x1a1a1a); 
+
+  // Hàm tiện ích tạo khối hộp + TỰ ĐỘNG THÊM VIỀN ĐEN (Outline)
+  function addBox(w, h, d, mat, x, y, z, target, outlineThickness) {
+    var mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    // Thêm viền đen để đồng bộ style Soft Clay
+    addOutline(mesh, { thickness: outlineThickness || 0.02 });
+    (target || g).add(mesh);
+    return mesh;
+  }
+
+  // --- 1. NỀN CỎ, ĐƯỜNG NHỰA & HÀNG RÀO XANH ---
+  addBox(34, 0.2, 26, grassMat, 0, -0.1, 0, g, 0.05);
+
+  // Đường nhựa chạy dọc bên phải & vạch kẻ
+  addBox(4.2, 0.22, 28, roofMat, 19.6, -0.09, 0, g, 0.02);
+  for (var vz = -12; vz <= 12; vz += 4) {
+    addBox(0.16, 0.23, 1.8, whiteMat, 19.6, -0.08, vz);
+  }
+
+  // Hàng rào cây xanh bao quanh 4 mặt
+  var hedgeH = 1.6;
+  var hedgeT = 0.8;
+  addBox(34, hedgeH, hedgeT, hedgeMat, 0, hedgeH / 2, -12.6, g, 0.04);        
+  addBox(hedgeT, hedgeH, 26, hedgeMat, -16.6, hedgeH / 2, 0, g, 0.04);        
+  addBox(23.5, hedgeH, hedgeT, hedgeMat, -5.25, hedgeH / 2, 12.6, g, 0.04);   
+  addBox(4.5, hedgeH, hedgeT, hedgeMat, 14.75, hedgeH / 2, 12.6, g, 0.04);    
+  addBox(hedgeT, hedgeH, 16, hedgeMat, 16.6, hedgeH / 2, -4.6, g, 0.04);      
+
+  // Gạch lát sân
+  for (var px = 2; px <= 12; px += 2.2) {
+    for (var pz = 6; pz <= 11.5; pz += 2.2) {
+      addBox(1.8, 0.05, 1.8, stoneMat, px, 0.025, pz, g, 0.01);
+    }
+  }
+  for (var lx = -15; lx <= -8; lx += 2.2) {
+    for (var lz = -10; lz <= 10; lz += 2.2) {
+      addBox(1.8, 0.05, 1.8, stoneMat, lx, 0.025, lz, g, 0.01);
+    }
+  }
+
+  // --- 2. SÀN NHÀ & HỆ THỐNG TƯỜNG ---
+  var house = new THREE.Group();
+  g.add(house);
+
+  var wallH = 2.6;
+  var wallT = 0.25;
+
+  // Sàn gạch
+  addBox(14, 0.15, 11, floorMat, -2, 0.075, -3.5, house, 0.01);      
+  addBox(6.5, 0.15, 4.5, floorMat, 1.5, 0.075, 4.25, house, 0.01);   
+  addBox(8.5, 0.15, 7.5, floorMat, 9.25, 0.075, -1.5, house, 0.01);  
+
+  // Tường bao & vách ngăn
+  addBox(wallT, wallH, 11, creamMat, -9, wallH / 2, -3.5, house, 0.025);
+  addBox(6, wallH, wallT, creamMat, -6, wallH / 2, -9, house, 0.025);
+  addBox(wallT, wallH, 6, woodMat, -3.2, wallH / 2, -6, house, 0.025);
+
+  addBox(8, wallH, wallT, creamMat, 1, wallH / 2, -9, house, 0.025);
+  addBox(3.5, wallH * 0.85, 0.1, glassMat, 0.5, (wallH * 0.85) / 2, -8.9, house, 0.02);
+
+  // Tường phòng khách (cắt thấp)
+  addBox(wallT, wallH * 0.7, 4.5, creamMat, -1.75, (wallH * 0.7) / 2, 4.25, house, 0.025);
+  addBox(6.5, wallH * 0.7, wallT, creamMat, 1.5, (wallH * 0.7) / 2, 6.5, house, 0.025);
+  addBox(wallT, wallH * 0.7, 2.5, creamMat, 4.75, (wallH * 0.7) / 2, 5.25, house, 0.025);
+
+  // Tường phòng ngủ
+  addBox(8.5, wallH, wallT, creamMat, 9.25, wallH / 2, -5.25, house, 0.025);
+  addBox(wallT, wallH, 7.5, creamMat, 13.5, wallH / 2, -1.5, house, 0.025);
+  addBox(8.5, wallH * 0.8, wallT, creamMat, 9.25, (wallH * 0.8) / 2, 2.25, house, 0.025);
+  addBox(wallT, wallH, 5.5, woodMat, 5, wallH / 2, -2.5, house, 0.025);     
+  addBox(wallT, wallH, 3.2, creamMat, 10.5, wallH / 2, -3.6, house, 0.025); 
+
+  // --- 3. NỘI THẤT ---
+  // Phòng khách (Tắt bóng đổ để tăng FPS)
+  addBox(4.2, 0.65, 0.8, sofaGrey, 1.5, 0.4, 5.8, house, 0.015).castShadow = false;
+  addBox(0.8, 0.65, 2.4, sofaGrey, -0.9, 0.4, 4.2, house, 0.015).castShadow = false;
+  addBox(0.8, 0.65, 1.8, sofaGrey, 3.9, 0.4, 4.5, house, 0.015).castShadow = false;
+  addBox(1.4, 0.35, 0.9, woodMat, 1.5, 0.25, 4.2, house, 0.015).castShadow = false;
+
+  // Sinh hoạt chung
+  addBox(2.2, 0.7, 0.85, whiteMat, 0.2, 0.4, -6.5, house, 0.015).castShadow = false;
+  addBox(0.85, 0.7, 2.0, whiteMat, 2.0, 0.4, -5.2, house, 0.015).castShadow = false;
+  addBox(2.4, 0.5, 0.45, woodMat, -2.6, 0.35, -5.2, house, 0.015).castShadow = false;
+
+  // Cầu thang
+  for (var i = 0; i < 10; i++) {
+    addBox(1.5, 0.22, 0.38, woodLight, 4.0, 0.2 + i * 0.22, -0.5 - i * 0.36, house, 0.01).castShadow = false;
+  }
+  addBox(2.2, 0.2, 1.6, woodLight, 4.4, 2.4, -4.4, house, 0.015).castShadow = false;
+
+  // Bếp & Bàn ăn
+  addBox(3.5, 0.85, 0.65, woodMat, -6.8, 0.5, -8.4, house, 0.015).castShadow = false;
+  addBox(0.65, 0.85, 3.2, woodMat, -8.4, 0.5, -6.8, house, 0.015).castShadow = false;
+  addBox(1.2, 0.75, 2.4, woodMat, -6.2, 0.45, -1.5, house, 0.015).castShadow = false;
+  var chairZ = [-2.2, -1.5, -0.8];
+  for (var c = 0; c < chairZ.length; c++) {
+    addBox(0.45, 0.45, 0.45, whiteMat, -7.1, 0.3, chairZ[c], house, 0.01).castShadow = false;
+    addBox(0.45, 0.45, 0.45, whiteMat, -5.3, 0.3, chairZ[c], house, 0.01).castShadow = false;
+  }
+
+  // Phòng ngủ
+  addBox(2.2, 0.55, 2.4, bedMat, 6.8, 0.35, -1.5, house, 0.02).castShadow = false;
+  addBox(0.2, 1.1, 2.4, woodMat, 5.6, 0.6, -1.5, house, 0.02).castShadow = false;
+  addBox(0.5, 0.45, 0.5, whiteMat, 5.8, 0.3, -3.1, house, 0.01).castShadow = false;
+  addBox(0.5, 0.45, 0.5, whiteMat, 5.8, 0.3, 0.1, house, 0.01).castShadow = false;
+  addBox(2.4, 1.8, 0.6, woodLight, 8.8, 1.0, 1.7, house, 0.02).castShadow = false;
+
+  // --- 4. XE Ô TÔ & CÂY XANH ---
+  function addCar(bodyMat, x, z, rotY) {
+    var car = new THREE.Group();
+    addBox(1.8, 0.55, 3.8, bodyMat, 0, 0.45, 0, car, 0.02);
+    addBox(1.5, 0.5, 2.0, bodyMat, 0, 0.95, -0.2, car, 0.02);
+    addBox(1.52, 0.42, 2.05, glassMat, 0, 0.95, -0.2, car, 0.01);
+
+    var wheels = [[-0.9, 0.3, 1.1], [0.9, 0.3, 1.1], [-0.9, 0.3, -1.1], [0.9, 0.3, -1.1]];
+    for (var w = 0; w < wheels.length; w++) {
+      var wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.25, 12), tireMat);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(wheels[w][0], wheels[w][1], wheels[w][2]);
+      car.add(wheel);
+    }
+    car.position.set(x, 0, z);
+    car.rotation.y = rotY;
+    g.add(car);
+  }
+
+  addCar(carOrange, 9.2, 6.2, Math.PI / 2.2);
+  addCar(carBrown, 8.6, 8.3, Math.PI / 2.2);
+
+  function addTree(x, z, scale) {
+    var tree = new THREE.Group();
+    var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2 * scale, 0.3 * scale, 1.8 * scale, 6), woodMat);
+    trunk.position.y = 0.9 * scale;
+    trunk.castShadow = true;
+    addOutline(trunk, { thickness: 0.02 });
+    tree.add(trunk);
+
+    var foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(1.6 * scale, 1), hedgeMat);
+    foliage.position.y = 2.6 * scale;
+    foliage.castShadow = true;
+    addOutline(foliage, { thickness: 0.03 });
+    tree.add(foliage);
+
+    tree.position.set(x, 0, z);
+    g.add(tree);
+  }
+
+  addTree(-5.5, 5.5, 1.4);
+  var bushes = [
+    [-14, -10], [-14, -7], [-14, -4], [-14, 6], [-14, 9],
+    [-10, -11], [-7, -11], [14.5, 3], [14.5, 6], [14.5, 9]
+  ];
+  for (var b = 0; b < bushes.length; b++) {
+    addTree(bushes[b][0], bushes[b][1], 0.55);
+  }
+
+  // --- 5. ĐỊNH VỊ TRÍ & THU NHỎ TỶ LỆ ---
+  // Đặt nhà ở phía sau chùa, thu nhỏ lại một chút cho vừa khuôn viên
+  g.position.set(0, 0, -35); 
+  g.rotation.y = Math.PI; // Xoay mặt tiền hướng về phía chùa
+  g.scale.set(0.7, 0.7, 0.7); // Thu nhỏ 70%
+
+  if (parent) parent.add(g);
+  
+  // --- 6. THÊM VA CHẠM (COLLISION) ---
+  // Do nhà xoay 180 độ và thu nhỏ 0.7, ta cần tính lại toạ độ chặn
+  // Tường chính (ngăn nhân vật đi xuyên qua nhà)
+  addBoxObstacle(0, -35, 14, 11); 
+  // Hàng rào xung quanh nhà (chặn không cho đi vào sân nhà)
+  addBoxObstacle(0, -35 - 9, 24, 2); // Rào sau
+  addBoxObstacle(0, -35 + 9, 24, 2); // Rào trước
+  
+  return g;
+}
+/* ═══════════════════════════════════════════════════════════
+   HIỆN ĐẠI VILLA (Căn nhà trong ảnh)
+   ═══════════════════════════════════════════════════════════ */
+function _modernHouse2(parent) {
   var g = new THREE.Group();
   
   var whiteMat = toonMat(0xf8f8f8);

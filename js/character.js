@@ -1,5 +1,5 @@
 /**
- * character.js — Chibi cartoon character + animation
+ * character.js — Chibi cartoon character + animation + movement (PC & Mobile)
  */
 import * as THREE from 'three';
 import { G, checkCollision, getGroundY } from './state.js';
@@ -186,29 +186,45 @@ export function updateMovement(dt, cameraMode, fpYaw) {
   if (G.charState.bowing) return;
   if (G.charState.sitting) { G.charState.walking = false; return; }
 
-  let dir = new THREE.Vector3();
+  let forward, right;
+  
+  // Xác định hướng đi dựa trên Camera
   if (cameraMode === 'first') {
-    const f = new THREE.Vector3(-Math.sin(fpYaw), 0, -Math.cos(fpYaw));
-    const r = new THREE.Vector3(Math.cos(fpYaw), 0, -Math.sin(fpYaw));
-    if (keys.w) dir.add(f); if (keys.s) dir.sub(f);
-    if (keys.d) dir.add(r); if (keys.a) dir.sub(r);
+    forward = new THREE.Vector3(-Math.sin(fpYaw), 0, -Math.cos(fpYaw));
+    right = new THREE.Vector3(Math.cos(fpYaw), 0, -Math.sin(fpYaw));
   } else {
-    const f = new THREE.Vector3();
-    G.camera.getWorldDirection(f); f.y = 0;
-    if (f.lengthSq() < 0.001) f.set(0, 0, -1);
-    f.normalize();
-    const r = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize();
-    if (keys.w) dir.add(f); if (keys.s) dir.sub(f);
-    if (keys.d) dir.add(r); if (keys.a) dir.sub(r);
+    forward = new THREE.Vector3();
+    G.camera.getWorldDirection(forward); 
+    forward.y = 0;
+    if (forward.lengthSq() < 0.001) forward.set(0, 0, -1);
+    forward.normalize();
+    right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+  }
+
+  let moveDir = new THREE.Vector3();
+
+  // 1. Nhận Input từ Bàn phím (PC)
+  if (keys.w) moveDir.add(forward);
+  if (keys.s) moveDir.sub(forward);
+  if (keys.d) moveDir.add(right);
+  if (keys.a) moveDir.sub(right);
+
+  // 2. Nhận Input từ Joystick (Mobile)
+  if (G.mobileInput) {
+    moveDir.add(forward.clone().multiplyScalar(G.mobileInput.y));
+    moveDir.add(right.clone().multiplyScalar(G.mobileInput.x));
   }
 
   let moving = false;
-  if (dir.lengthSq() > 0.001) {
-    G.clickTargetPos = null;
-    dir.normalize();
+  
+  // 3. Di chuyển
+  if (moveDir.lengthSq() > 0.001) {
+    G.clickTargetPos = null; // Hủy click-to-move nếu đang dùng phím
+    moveDir.normalize();
     moving = true;
-    _applyMove(dir, dt);
+    _applyMove(moveDir, dt);
   } else if (G.clickTargetPos) {
+    // Click-to-move (Chỉ dùng trên PC)
     const d = new THREE.Vector3(
       G.clickTargetPos.x - G.player.position.x, 0,
       G.clickTargetPos.z - G.player.position.z
@@ -220,6 +236,8 @@ export function updateMovement(dt, cameraMode, fpYaw) {
   }
 
   G.charState.walking = moving;
+  
+  // 4. Cập nhật độ cao (bậc tam cấp)
   const gy = getGroundY(G.player.position.x, G.player.position.z);
   G.player.position.y += (gy - G.player.position.y) * Math.min(1, dt * 12);
 }
@@ -227,8 +245,12 @@ export function updateMovement(dt, cameraMode, fpYaw) {
 function _applyMove(dir, dt) {
   const nx = G.player.position.x + dir.x * MOVE_SPEED * dt;
   const nz = G.player.position.z + dir.z * MOVE_SPEED * dt;
+  
+  // Trượt dọc tường (Wall sliding)
   if (!checkCollision(nx, G.player.position.z)) G.player.position.x = nx;
   if (!checkCollision(G.player.position.x, nz)) G.player.position.z = nz;
+  
+  // Xoay mặt theo hướng đi
   const tgt = Math.atan2(dir.x, dir.z);
   G.player.rotation.y = lerpAngle(G.player.rotation.y, tgt, Math.min(1, dt * 12));
 }
@@ -240,7 +262,7 @@ export function updateCharacterAnim(dt) {
 
   if (s.bowing) {
     t.bodyRotX = s.bowBodyRot;
-    t.hipsY = 0.42 * (s.bowHipsY / 0.7); // scale to new hips base
+    t.hipsY = 0.42 * (s.bowHipsY / 0.7); 
     t.legRotXL = -s.bowLegBend;
     t.legRotXR = -s.bowLegBend;
     setClaspPose();
@@ -260,10 +282,11 @@ export function updateCharacterAnim(dt) {
     t.legRotZL = 0; t.legRotZR = 0;
   } else {
     resetPoseTargets();
-    t.hipsY = 0.42 + Math.sin(s.time * 1.5) * 0.012;
+    t.hipsY = 0.42 + Math.sin(s.time * 1.5) * 0.012; // Nhịp thở nhẹ
   }
 
-  const k = Math.min(1, dt * 10);
+  const k = Math.min(1, dt * 10); // Hệ số nội suy
+  
   p.bodyGroup.rotation.x = THREE.MathUtils.lerp(p.bodyGroup.rotation.x, t.bodyRotX, k);
   p.hips.position.y = THREE.MathUtils.lerp(p.hips.position.y, t.hipsY, k);
   p.legL.rotation.x = THREE.MathUtils.lerp(p.legL.rotation.x, t.legRotXL, k);
@@ -278,7 +301,7 @@ export function updateCharacterAnim(dt) {
   p.armR.rotation.y = THREE.MathUtils.lerp(p.armR.rotation.y, t.armRotYR, k);
 }
 
-/* ═══════════ BOW ═══════════ */
+/* ═══════════ BOW (LẠY) ═══════════ */
 const BOW_DURATION = 2.6;
 
 export function startBowAnimation(count, onComplete) {
@@ -297,7 +320,7 @@ function _startSingleBow() {
   G.charState.bowBodyRot = 0;
   G.charState.bowHipsY = 0.42;
   G.charState.bowLegBend = 0;
-  G.audio.bell();
+  if (G.audio) G.audio.bell();
 }
 
 export function updateBowAnimation(dt) {
@@ -321,10 +344,8 @@ export function updateBowAnimation(dt) {
   }
 
   G.charState.bowBodyRot = bodyRot;
-  G.charState.bowHipsY = hipsY * (0.7 / 0.42); // keep compatibility
+  G.charState.bowHipsY = hipsY * (0.7 / 0.42); 
   G.charState.bowLegBend = legBend;
-
-  // Override hipsY in anim using scaling
   G.charState.poseTargets.hipsY = hipsY;
 
   if (t >= 1) {
@@ -374,12 +395,12 @@ export function standUp() {
   }
   G.charState.sitting = false;
   resetPoseTargets();
-  G.player.position.z += 0.7;
+  G.player.position.z += 0.7; // Bước tới trước một chút để không đứng đè lên đệm
   G.player.position.y = 0;
 }
 
 export function handleSitToggle() {
-  if (G.charState.bowing) return;
+  if (G.charState.bowing) return { action: 'none' };
   if (G.charState.sitting) {
     standUp();
     return { action: 'stand', msg: 'Đứng dậy' };

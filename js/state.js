@@ -75,7 +75,7 @@ export function checkCollision(x, z, radius = 0.42) {
       if (dx * dx + dz * dz < r * r) return true;
     }
   }
-    if (Math.abs(x) > 36 || z > 27 || z < -30) return true;
+    if (Math.abs(x) > 36 || z > 27 || z < -45) return true;
   return false;
 }
 
