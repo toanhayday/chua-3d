@@ -1,18 +1,12 @@
 /**
- * state.js — Shared game state & world constants
- * Populated during initialization, read by all modules.
+ * state.js - Quản lý trạng thái toàn cục và va chạm bản đồ
  */
-
 export const G = {
-  // Three.js core
   scene: null, camera: null, renderer: null, controls: null,
-  // Audio
   audio: null,
-  // World
   world: null, obstacles: [],
   cushions: [], incenseBurner: null, buddha: null,
   candleFlames: [], pondWaters: [], smokeSystems: [],
-  // Character
   player: null, charParts: {},
   charState: {
     walking: false, sitting: false, bowing: false, bowProgress: 0,
@@ -22,58 +16,57 @@ export const G = {
     bowOnComplete: null
   },
   seatedCushion: -1,
-  // Ritual state
   meditationActive: false, meditationEndTime: 0, meditationDuration: 0,
   meditationInterval: null, breathLabelTimeout: null,
   chantActive: false, currentChant: 'niemphat', chantLineIndex: 0,
   incenseLit: false, offeredItems: {},
-  // Camera
-  cameraMode: 'third', clickTargetPos: null
+  cameraMode: 'third', clickTargetPos: null,
+  mobileInput: { x: 0, y: 0 } // Thêm cho Joystick
 };
 
-// Temple platform dimensions
 export const PLAT = { y: 0.3, w: 15, d: 11, z: -10 };
 
-/** Check if player is inside the main hall. */
 export function inTemple() {
   if (!G.player) return false;
   const pz = G.player.position.z;
   return pz < PLAT.z + PLAT.d / 2 + 0.5 && pz > PLAT.z - PLAT.d / 2 - 1;
 }
 
-/** Ground height at position (steps up onto temple platform). */
+/**
+ * Tính độ cao mặt đất (dùng cho bậc tam cấp)
+ */
 export function getGroundY(x, z) {
   const inT = Math.abs(x) < PLAT.w / 2 - 0.2 && z < PLAT.z + PLAT.d / 2 && z > PLAT.z - PLAT.d / 2;
   if (inT) {
     const frontEdge = PLAT.z + PLAT.d / 2;
     if (z > frontEdge - 1.6) {
-      const t = Math.max(0, Math.min(1, (frontEdge - z) / 1.6));
-      return PLAT.y * t;
+      return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6));
     }
     return PLAT.y;
   }
+  // Bậc thang phía trước
   const onSteps = Math.abs(x) < 2.6 && z > PLAT.z + PLAT.d / 2 && z < PLAT.z + PLAT.d / 2 + 2;
   if (onSteps) {
     const frontEdge = PLAT.z + PLAT.d / 2;
-    const t = Math.max(0, Math.min(1, (frontEdge - z) / 1.6 + 0.2));
-    return PLAT.y * t;
+    return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6 + 0.2));
   }
   return 0;
 }
 
-/** Collision test against all registered obstacles + world bounds. */
-// Trong state.js
+/**
+ * Kiểm tra va chạm (Mở rộng 200x200 và chặn sông)
+ */
 export function checkCollision(x, z, radius = 0.42) {
   // 1. Kiểm tra giới hạn bản đồ 200x200
   if (Math.abs(x) > 100 || Math.abs(z) > 100) return true;
 
-  // 2. Chặn không cho rơi xuống sông (Sông nằm ngang ở Z = 20, rộng 10m)
-  const RIVER_Z = 20;
-  const RIVER_WIDTH = 10;
-  if (z > RIVER_Z - RIVER_WIDTH/2 && z < RIVER_Z + RIVER_WIDTH/2) {
+  // 2. Chặn không cho rơi xuống sông (Sông nằm ngang ở Z = 30, rộng 16m)
+  const RIVER_Z = 30;
+  const RIVER_WIDTH = 16;
+  if (z > RIVER_Z - RIVER_WIDTH / 2 && z < RIVER_Z + RIVER_WIDTH / 2) {
     // Ngoại trừ khu vực Cầu gỗ (X từ -4 đến 4)
     if (x < -4 || x > 4) {
-      return true; 
+      return true;
     }
   }
 
@@ -91,19 +84,6 @@ export function checkCollision(x, z, radius = 0.42) {
     }
   }
   return false;
-}
-
-export function getGroundY(x, z) {
-  // Độ cao bậc tam cấp Chùa
-  const inT = Math.abs(x) < PLAT.w / 2 - 0.2 && z < PLAT.z + PLAT.d / 2 && z > PLAT.z - PLAT.d / 2;
-  if (inT) {
-    const frontEdge = PLAT.z + PLAT.d / 2;
-    if (z > frontEdge - 1.6) {
-      return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6));
-    }
-    return PLAT.y;
-  }
-  return 0;
 }
 
 export function addBoxObstacle(x, z, w, d) { G.obstacles.push({ type: 'box', x, z, w, d }); }
