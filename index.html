@@ -172,5 +172,13 @@
     <div id="joystick-knob"></div>
   </div>
 </div>
+<!-- Bảng điều khiển thang máy -->
+<div id="elevatorPanel" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(250, 240, 225, 0.98); padding:20px; border-radius:16px; border:2px solid #8b6f47; box-shadow:0 10px 30px rgba(0,0,0,0.5); z-index:10000; text-align:center; width:300px;">
+  <h3 style="margin-bottom:15px; color:#3d2b17; font-family:sans-serif;">Thang Máy</h3>
+  <div id="elevatorGrid" style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin-bottom:15px;">
+    <!-- Các nút sẽ được sinh ra bằng JS -->
+  </div>
+  <button id="closeElevator" style="background:#b8935a; color:white; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; width:100%; font-weight:bold;">Đóng</button>
+</div>
 </body>
 </html>
