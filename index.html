@@ -26,7 +26,16 @@
 </script>
 </head>
 <body>
+<!-- HUD Nông Trại -->
+<div id="farmHud" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; background: rgba(250, 240, 225, 0.9); padding: 10px 20px; border-radius: 12px; font-family: sans-serif; font-weight: bold; color: #5a3a20; z-index: 10; border: 2px solid #8b6f47; pointer-events: none;">
+  <div id="clockDisplay">📅 Mùa Xuân, Ngày 1 - 06:00 AM</div>
+  <div id="staminaDisplay">⚡ 100/100</div>
+</div>
 
+<!-- Hotbar -->
+<div id="hotbar" style="position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 10;">
+  <!-- Các slot sẽ được sinh ra bằng JS -->
+</div>
 <div id="loading">
   <div class="loader-title">Không Gian Chùa</div>
   <div class="loader-sub">Tịnh tâm · An lạc</div>
@@ -157,5 +166,11 @@
 </script>
 
 <script type="module" src="js/main.js"></script>
+<!-- Cần điều khiển ảo cho Mobile -->
+<div id="joystick-container">
+  <div id="joystick-base">
+    <div id="joystick-knob"></div>
+  </div>
+</div>
 </body>
 </html>
