@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { G, PLAT } from './state.js';
 import { AudioManager } from './audio-v2.js';
 import { buildWorld, updateEnvironmentAnimations } from './world.js';
+import { EnvironmentManager } from './environment.js'; // <-- THÊM DÒNG NÀY
 import { createCharacter, bindKeyboard, updateMovement, updateCharacterAnim, updateBowAnimation } from './character.js';
 import * as rituals from './rituals.js';
 import { bindUI, setCameraMode, updatePrompt, fpState, showToast } from './ui.js';
@@ -108,6 +109,7 @@ initMobileControls(); // <-- Thêm dòng này
   initPokemons();
   initMultiplayer();
  OfficeManager.init(); // <-- Thêm dòng này
+ EnvironmentManager.init(); // <-- THÊM DÒNG NÀY
   setCameraMode('third');
 
   /* ═══════ PIXELATION PIPELINE ═══════ */
