@@ -1,0 +1,14 @@
+{
+  "name": "chua-3d",
+  "version": "1.0.0",
+  "description": "Ứng dụng web mô phỏng không gian chùa Việt Nam 3D tương tác, phong cách soft clay, tất cả geometry và âm thanh được sinh procedural — **không cần file asset ngoài** (trừ Three.js).",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}
