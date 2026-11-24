@@ -7,7 +7,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Core Systems
 import { G, PLAT } from './state.js';
 import { AudioManager } from './audio-v2.js';
-import { buildWorld } from './world.js';
+import { buildWorld, updateEnvironmentAnimations } from './world.js';
 import { createCharacter, bindKeyboard, updateMovement, updateCharacterAnim, updateBowAnimation } from './character.js';
 import * as rituals from './rituals.js';
 import { bindUI, setCameraMode, updatePrompt, fpState, showToast } from './ui.js';
@@ -150,7 +150,7 @@ initMobileControls(); // <-- Thêm dòng này
   const farmRaycaster = new THREE.Raycaster();
   const farmMouse = new THREE.Vector2();
 
-    G.renderer.domElement.addEventListener('click', (e) => {
+      G.renderer.domElement.addEventListener('click', (e) => {
     if (G.cameraMode === 'first' || e.button !== 0) return;
     if (e.target !== G.renderer.domElement) return;
 
@@ -158,32 +158,32 @@ initMobileControls(); // <-- Thêm dòng này
     farmMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     farmRaycaster.setFromCamera(farmMouse, G.camera);
 
-    // --- 1. Ưu tiên kiểm tra Thang Máy trước ---
-    // (Chúng ta sẽ tìm tất cả các mesh trong tòa nhà)
-    const sceneObjects = [];
-    G.scene.traverse(obj => {
-      if (obj.userData.isElevatorBtn) sceneObjects.push(obj);
-    });
-
-    const elevatorIntersects = farmRaycaster.intersectObjects(sceneObjects);
-    if (elevatorIntersects.length > 0) {
-      e.stopImmediatePropagation();
-      document.getElementById('elevatorPanel').style.display = 'block';
+    // 1. Quét vào tất cả các InstancedMesh của Farm
+    const farmTargets = [
+      FarmManager.grassMesh, 
+      FarmManager.dirtMesh, 
+      FarmManager.rockMesh, 
+      FarmManager.woodMesh, 
+      FarmManager.cropMesh
+    ];
+    
+    const intersects = farmRaycaster.intersectObjects(farmTargets);
+    if (intersects.length > 0) {
+      e.stopImmediatePropagation(); 
+      const hit = intersects[0];
+      
+      // Lấy ID của instance (ô đất) bị click
+      if (hit.instanceId !== undefined) {
+        // Gán instanceId vào userData của mesh để FarmManager xử lý
+        hit.object.userData.instanceId = hit.instanceId;
+        
+        const currentItem = InventoryManager.getSelectedItem();
+        FarmManager.interactWithTile(hit.object, currentItem);
+      }
       return;
     }
 
-    // --- 2. Kiểm tra Nông trại ---
-    const farmMeshes = FarmManager.meshes.flat();
-    if (farmMeshes.length > 0) {
-      const intersects = farmRaycaster.intersectObjects(farmMeshes);
-      if (intersects.length > 0) {
-        e.stopImmediatePropagation(); 
-        const hitMesh = intersects[0].object;
-        const currentItem = InventoryManager.getSelectedItem();
-        FarmManager.interactWithTile(hitMesh, currentItem);
-        return;
-      }
-    }
+    // 2. (Tuỳ chọn) Các raycast khác như thang máy...
   }, true);
 
 // Dùng capture phase để chạy trước sự kiện click của ui.js
@@ -234,6 +234,9 @@ initMobileControls(); // <-- Thêm dòng này
     updatePokemons(dt, elapsed);
     updateMultiplayer(dt, elapsed);
     updateFish(dt, elapsed);
+// Cập nhật môi trường (nến, nước)
+updateEnvironmentAnimations(elapsed);
+EnvironmentManager.update(dt); // Từ environment.js
 
     // 3. Shadow throttle
     shadowTimer += dt;

@@ -1,31 +1,25 @@
-/**
- * farm.js - Quản lý Lưới đất và Trồng trọt (Multiplayer Sync)
- */
 import * as THREE from 'three';
 import { G } from './state.js';
 import { EventBus } from './events.js';
 import { InventoryManager } from './inventory.js';
 
 export const FarmManager = {
-  gridSize: 5,
-  tileSpacing: 1.2,
-  startX: 8,
-  startZ: 8,
+  gridSize: 40, // Lưới 40x40 ô (tương đương 80x80 mét)
+  tileSpacing: 2,
+startX: 10,  // Dời sang phải
+startZ: 45,  // Dời xuống dưới qua cầu
   tiles: [], 
-  meshes: [],
+  
+  // InstancedMeshes
+  grassMesh: null, dirtMesh: null, rockMesh: null, woodMesh: null, cropMesh: null,
+  
+  // Data mảng lưu trữ trạng thái để update InstancedMatrix
+  gridData: [],
 
   init() {
     this.createFarmVisuals();
-    
-    // 1. Lắng nghe sự kiện qua ngày (cây lớn)
     EventBus.on('OnNewDay', () => this.growCrops());
-    
-    // 2. Lắng nghe hành động từ người chơi khác (Cuốc, tưới, trồng)
-    EventBus.on('RemoteFarmAction', (msg) => {
-      this.applyTileState(msg.x, msg.z, msg.state);
-    });
-
-    // 3. Đồng bộ toàn bộ trạng thái nông trại khi mới vào game
+    EventBus.on('RemoteFarmAction', (msg) => this.applyTileState(msg.x, msg.z, msg.state));
     EventBus.on('SyncWorldState', (worldState) => {
       if (worldState.farm) {
         for (const key in worldState.farm) {
@@ -37,171 +31,224 @@ export const FarmManager = {
   },
 
   createFarmVisuals() {
-    // Vật liệu cho các trạng thái đất
-    const dirtMat = new THREE.MeshStandardMaterial({ color: 0x6a4a30, roughness: 0.9 });
-    const tillMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 1.0 });
-    const waterMat = new THREE.MeshStandardMaterial({ color: 0x2a1a10, roughness: 0.3, metalness: 0.5 });
+    const maxInstances = this.gridSize * this.gridSize;
+    const dummy = new THREE.Object3D();
+
+    // 1. Tạo các hình khối cơ bản
+    const grassGeo = new THREE.PlaneGeometry(this.tileSpacing * 0.95, this.tileSpacing * 0.95);
+    grassGeo.rotateX(-Math.PI / 2);
+    const dirtGeo = grassGeo.clone();
+    const rockGeo = new THREE.DodecahedronGeometry(0.6);
+    const woodGeo = new THREE.CylinderGeometry(0.15, 0.2, 1.2, 5);
+    woodGeo.rotateZ(Math.PI / 2);
+    const cropGeo = new THREE.ConeGeometry(0.3, 0.8, 6);
+
+    // 2. Tạo Materials
+    this.grassMesh = new THREE.InstancedMesh(grassGeo, new THREE.MeshStandardMaterial({ color: 0x66aa44 }), maxInstances);
+    this.dirtMesh = new THREE.InstancedMesh(dirtGeo, new THREE.MeshStandardMaterial({ color: 0x4a3018 }), maxInstances);
+    this.rockMesh = new THREE.InstancedMesh(rockGeo, new THREE.MeshStandardMaterial({ color: 0x888888 }), maxInstances);
+    this.woodMesh = new THREE.InstancedMesh(woodGeo, new THREE.MeshStandardMaterial({ color: 0x5a3a20 }), maxInstances);
+    this.cropMesh = new THREE.InstancedMesh(cropGeo, new THREE.MeshStandardMaterial({ color: 0x88c060 }), maxInstances);
+
+    // Thiết lập nhận bóng
+    [this.grassMesh, this.dirtMesh, this.rockMesh, this.woodMesh, this.cropMesh].forEach(m => {
+      m.receiveShadow = true; m.castShadow = true;
+    });
     
-    const planeGeo = new THREE.PlaneGeometry(this.tileSpacing * 0.9, this.tileSpacing * 0.9);
-    
+    // Khởi tạo tất cả các mesh bị ẩn (scale = 0)
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+    for (let i = 0; i < maxInstances; i++) {
+      this.grassMesh.setMatrixAt(i, dummy.matrix);
+      this.dirtMesh.setMatrixAt(i, dummy.matrix);
+      this.rockMesh.setMatrixAt(i, dummy.matrix);
+      this.woodMesh.setMatrixAt(i, dummy.matrix);
+      this.cropMesh.setMatrixAt(i, dummy.matrix);
+    }
+
+    G.scene.add(this.grassMesh, this.dirtMesh, this.rockMesh, this.woodMesh, this.cropMesh);
+
+    // 3. Khởi tạo dữ liệu lưới
     for (let x = 0; x < this.gridSize; x++) {
-      this.tiles[x] = [];
-      this.meshes[x] = [];
+      this.gridData[x] = [];
       for (let z = 0; z < this.gridSize; z++) {
-        // Dữ liệu ô đất
-        this.tiles[x][z] = {
-          tilled: false,
+        // Random đá hoặc gỗ (tỉ lệ 10%)
+        let type = 'grass';
+        let rand = Math.random();
+        if (rand < 0.05) type = 'rock';
+        else if (rand < 0.1) type = 'wood';
+
+        this.gridData[x][z] = {
+          id: x * this.gridSize + z,
+          type: type, // 'grass', 'tilled', 'crop', 'rock', 'wood'
           watered: false,
-          crop: null, // { id, stage, daysGrown }
-          mesh: null  // Lưu mesh của cây trồng
+          cropStage: 0,
+          cropDays: 0,
+          worldX: this.startX + x * this.tileSpacing,
+          worldZ: this.startZ + z * this.tileSpacing
         };
-
-        // Mesh hiển thị ô đất
-        const mesh = new THREE.Mesh(planeGeo, dirtMat);
-        mesh.rotation.x = -Math.PI / 2;
-        mesh.position.set(
-          this.startX + x * this.tileSpacing,
-          0.02, 
-          this.startZ + z * this.tileSpacing
-        );
-        mesh.receiveShadow = true;
-        
-        mesh.userData = { 
-          baseMat: dirtMat, 
-          tillMat: tillMat, 
-          waterMat: waterMat,
-          gridX: x, 
-          gridZ: z 
-        };
-
-        G.scene.add(mesh);
-        this.meshes[x][z] = mesh;
+        this.updateInstanceVisual(x, z);
       }
     }
   },
 
-  // Hàm cập nhật giao diện ô đất (Dùng chung cho cả Local và Remote)
-  applyTileState(x, z, state) {
-    const tile = this.tiles[x][z];
-    const mesh = this.meshes[x][z];
-    if (!tile || !mesh) return;
+  // Cập nhật hình ảnh của 1 ô đất
+  updateInstanceVisual(x, z) {
+    const tile = this.gridData[x][z];
+    if (!tile) return;
+    
+    const dummy = new THREE.Object3D();
+    dummy.position.set(tile.worldX, 0, tile.worldZ);
 
-    // Đồng bộ data
-    tile.tilled = state.tilled;
-    tile.watered = state.watered;
-    tile.crop = state.crop;
+    // Reset tất cả về 0 trước
+    const hide = new THREE.Matrix4().makeScale(0, 0, 0);
+    this.grassMesh.setMatrixAt(tile.id, hide);
+    this.dirtMesh.setMatrixAt(tile.id, hide);
+    this.rockMesh.setMatrixAt(tile.id, hide);
+    this.woodMesh.setMatrixAt(tile.id, hide);
+    this.cropMesh.setMatrixAt(tile.id, hide);
 
-    // 1. Cập nhật màu nền đất
-    if (tile.watered) mesh.material = mesh.userData.waterMat;
-    else if (tile.tilled) mesh.material = mesh.userData.tillMat;
-    else mesh.material = mesh.userData.baseMat;
-
-    // 2. Cập nhật mesh cây trồng
-    if (tile.crop) {
-      // Xóa cây cũ (nếu có) để vẽ lại theo stage mới
-      if (tile.mesh) {
-        G.scene.remove(tile.mesh);
-        tile.mesh = null;
-      }
-      // Vẽ cây mới
-      const cropMesh = this.createCropMesh(tile.crop.id, tile.crop.stage);
-      cropMesh.position.copy(mesh.position);
-      cropMesh.position.y = 0.05;
-      G.scene.add(cropMesh);
-      tile.mesh = cropMesh;
-    } else if (!tile.crop && tile.mesh) {
-      // Nếu không có cây mà có mesh -> Xóa mesh
-      G.scene.remove(tile.mesh);
-      tile.mesh = null;
+    // Hiển thị theo Type
+    if (tile.type === 'grass') {
+      dummy.position.y = 0.01; dummy.updateMatrix();
+      this.grassMesh.setMatrixAt(tile.id, dummy.matrix);
+    } 
+    else if (tile.type === 'tilled') {
+      dummy.position.y = 0.02; dummy.updateMatrix();
+      this.dirtMesh.setMatrixAt(tile.id, dummy.matrix);
     }
+    else if (tile.type === 'crop') {
+      dummy.position.y = 0.02; dummy.updateMatrix();
+      this.dirtMesh.setMatrixAt(tile.id, dummy.matrix);
+      
+      // Scale cây theo giai đoạn
+      let s = 0.5 + tile.cropStage * 0.5; 
+      dummy.position.y = 0.4 * s; 
+      dummy.scale.set(s, s, s);
+      dummy.updateMatrix();
+      this.cropMesh.setMatrixAt(tile.id, dummy.matrix);
+    }
+    else if (tile.type === 'rock') {
+      dummy.position.y = 0.3; dummy.updateMatrix();
+      this.rockMesh.setMatrixAt(tile.id, dummy.matrix);
+    }
+    else if (tile.type === 'wood') {
+      dummy.position.y = 0.2; dummy.rotation.y = Math.random() * Math.PI; dummy.updateMatrix();
+      this.woodMesh.setMatrixAt(tile.id, dummy.matrix);
+    }
+
+    // Đánh dấu cần cập nhật GPU
+    this.grassMesh.instanceMatrix.needsUpdate = true;
+    this.dirtMesh.instanceMatrix.needsUpdate = true;
+    this.rockMesh.instanceMatrix.needsUpdate = true;
+    this.woodMesh.instanceMatrix.needsUpdate = true;
+    this.cropMesh.instanceMatrix.needsUpdate = true;
   },
 
-  // Xử lý khi người chơi click chuột vào đất
-  interactWithTile(mesh, item) {
-    if (!item) return;
-    const x = mesh.userData.gridX;
-    const z = mesh.userData.gridZ;
-    const tile = this.tiles[x][z];
+  // Xử lý khi click chuột
+  interactWithTile(hitMesh, item) {
+    const instanceId = hitMesh.userData.instanceId;
+    if (instanceId === undefined) return;
+
+    // Tìm vị trí x,z từ instanceId
+    const x = Math.floor(instanceId / this.gridSize);
+    const z = instanceId % this.gridSize;
+    const tile = this.gridData[x][z];
     let actionTaken = false;
 
-    // 1. Dùng Cuốc
-    if (item.id === 'hoe' && !tile.tilled) {
-      if (InventoryManager.useStamina(5)) {
-        tile.tilled = true;
+    // 1. Đập đá / Chặt gỗ
+    if (tile.type === 'rock' && item.id === 'hammer') {
+      if (InventoryManager.useStamina(10)) {
+        tile.type = 'tilled';
+        InventoryManager.addItem('stone', 2); // Nhận đá
         actionTaken = true;
-        G.audio.woodenFish();
       }
     }
-    // 2. Dùng Bình tưới
-    else if (item.id === 'watering_can' && tile.tilled && !tile.watered) {
+    else if (tile.type === 'wood' && item.id === 'axe') {
+      if (InventoryManager.useStamina(10)) {
+        tile.type = 'tilled';
+        InventoryManager.addItem('wood', 2); // Nhận gỗ
+        actionTaken = true;
+      }
+    }
+    // 2. Cuốc đất cỏ
+    else if (tile.type === 'grass' && item.id === 'hoe') {
+      if (InventoryManager.useStamina(5)) {
+        tile.type = 'tilled';
+        actionTaken = true;
+      }
+    }
+    // 3. Tưới nước
+    else if (tile.type === 'tilled' && item.id === 'watering_can' && !tile.watered) {
       if (InventoryManager.useStamina(2)) {
         tile.watered = true;
+        // Đổi màu đất ẩm (tạm bỏ qua vì đang dùng InstancedMesh chung 1 màu)
         actionTaken = true;
-        G.audio.woodenFish(); 
       }
     }
-    // 3. Trồng hạt giống
-    else if (item.type === 'seed' && tile.tilled && !tile.crop && item.quantity > 0) {
+    // 4. Trồng cây
+    else if (tile.type === 'tilled' && item.type === 'seed' && item.quantity > 0) {
       if (InventoryManager.useStamina(1)) {
-        tile.crop = { id: item.cropId, stage: 0, daysGrown: 0 };
-        item.quantity -= 1;
-        actionTaken = true;
+        tile.type = 'crop';
+        tile.cropStage = 0;
+        tile.cropDays = 0;
+        item.quantity--;
         EventBus.emit('OnInventoryChanged');
-        G.audio.woodenFish();
+        actionTaken = true;
       }
+    }
+    // 5. Thu hoạch
+    else if (tile.type === 'crop' && tile.cropStage >= 2) {
+      tile.type = 'tilled';
+      InventoryManager.addItem('turnip', 1);
+      actionTaken = true;
     }
 
-    // Nếu có thay đổi, cập nhật đồ họa và BẮN SỰ KIỆN qua mạng
     if (actionTaken) {
-      this.applyTileState(x, z, tile);
+      G.audio.woodenFish();
+      this.updateInstanceVisual(x, z);
       EventBus.emit('LocalFarmAction', { x, z, state: tile });
     }
   },
 
-  createCropMesh(cropId, stage) {
-    const group = new THREE.Group();
-    if (stage === 0) {
-      // Mầm non
-      const sprout = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.2, 4), new THREE.MeshStandardMaterial({ color: 0x88c060 }));
-      sprout.position.y = 0.1; group.add(sprout);
-    } else if (stage === 1) {
-      // Cây nhỡ
-      const bush = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshStandardMaterial({ color: 0x58a040 }));
-      bush.position.y = 0.2; group.add(bush);
-    } else if (stage >= 2) {
-      // Cây trưởng thành
-      const bush = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), new THREE.MeshStandardMaterial({ color: 0x48a038 }));
-      bush.position.y = 0.25; group.add(bush);
-      
-      const root = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshStandardMaterial({ color: 0xf0f0f0 }));
-      root.position.set(0, 0.05, 0); root.scale.set(1, 0.6, 1); group.add(root);
+  applyTileState(x, z, state) {
+    if (this.gridData[x] && this.gridData[x][z]) {
+      this.gridData[x][z] = Object.assign(this.gridData[x][z], state);
+      this.updateInstanceVisual(x, z);
     }
-    return group;
   },
 
+  // Cỏ/Đá/Gỗ mọc lại và cây lớn lên
   growCrops() {
     for (let x = 0; x < this.gridSize; x++) {
       for (let z = 0; z < this.gridSize; z++) {
-        const tile = this.tiles[x][z];
+        const tile = this.gridData[x][z];
         let changed = false;
 
-        // Chỉ cây mới lớn nếu hôm qua có tưới nước
-        if (tile.watered) {
-          if (tile.crop) {
-            tile.crop.daysGrown += 1;
-            // Cứ 2 ngày thì lớn 1 giai đoạn (tối đa stage 2)
-            tile.crop.stage = Math.min(2, Math.floor(tile.crop.daysGrown / 2));
+        if (tile.type === 'crop') {
+          if (tile.watered) {
+            tile.cropDays++;
+            tile.cropStage = Math.min(2, Math.floor(tile.cropDays / 2));
+            changed = true;
           }
-          changed = true;
+          tile.watered = false; // Hết nước
+        } 
+        else if (tile.type === 'tilled') {
+          // Đất trống 3 ngày không trồng -> mọc lại cỏ/đá/gỗ
+          tile.cropDays++;
+          if (tile.cropDays > 3) {
+            const rand = Math.random();
+            if (rand < 0.1) tile.type = 'rock';
+            else if (rand < 0.2) tile.type = 'wood';
+            else tile.type = 'grass';
+            tile.cropDays = 0;
+            changed = true;
+          }
         }
-        
-        // Hết nước vào ngày mới
-        if (tile.watered) {
-          tile.watered = false;
-          changed = true;
+
+        if (changed) {
+          this.updateInstanceVisual(x, z);
         }
-        
-        if (changed) this.applyTileState(x, z, tile);
       }
     }
   }

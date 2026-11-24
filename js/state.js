@@ -62,7 +62,22 @@ export function getGroundY(x, z) {
 }
 
 /** Collision test against all registered obstacles + world bounds. */
+// Trong state.js
 export function checkCollision(x, z, radius = 0.42) {
+  // 1. Kiểm tra giới hạn bản đồ 200x200
+  if (Math.abs(x) > 100 || Math.abs(z) > 100) return true;
+
+  // 2. Chặn không cho rơi xuống sông (Sông nằm ngang ở Z = 20, rộng 10m)
+  const RIVER_Z = 20;
+  const RIVER_WIDTH = 10;
+  if (z > RIVER_Z - RIVER_WIDTH/2 && z < RIVER_Z + RIVER_WIDTH/2) {
+    // Ngoại trừ khu vực Cầu gỗ (X từ -4 đến 4)
+    if (x < -4 || x > 4) {
+      return true; 
+    }
+  }
+
+  // 3. Kiểm tra vật cản (Obstacles)
   for (const o of G.obstacles) {
     if (o.type === 'box') {
       const cx = Math.max(o.x - o.w / 2, Math.min(x, o.x + o.w / 2));
@@ -75,8 +90,20 @@ export function checkCollision(x, z, radius = 0.42) {
       if (dx * dx + dz * dz < r * r) return true;
     }
   }
-    if (Math.abs(x) > 36 || z > 27 || z < -45) return true;
   return false;
+}
+
+export function getGroundY(x, z) {
+  // Độ cao bậc tam cấp Chùa
+  const inT = Math.abs(x) < PLAT.w / 2 - 0.2 && z < PLAT.z + PLAT.d / 2 && z > PLAT.z - PLAT.d / 2;
+  if (inT) {
+    const frontEdge = PLAT.z + PLAT.d / 2;
+    if (z > frontEdge - 1.6) {
+      return PLAT.y * Math.max(0, Math.min(1, (frontEdge - z) / 1.6));
+    }
+    return PLAT.y;
+  }
+  return 0;
 }
 
 export function addBoxObstacle(x, z, w, d) { G.obstacles.push({ type: 'box', x, z, w, d }); }
