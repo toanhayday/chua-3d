@@ -24,6 +24,7 @@ import { InventoryManager } from './inventory.js';
 import { FarmManager } from './farm.js';
 import { initFarmUI } from './farm-ui.js';
 import { initMobileControls } from './mobile.js';
+import { OfficeManager } from './office.js';
 
 function init() {
   /* ═══════ RENDERER ═══════ */
@@ -106,6 +107,7 @@ initMobileControls(); // <-- Thêm dòng này
   // Thành phần phụ
   initPokemons();
   initMultiplayer();
+ OfficeManager.init(); // <-- Thêm dòng này
   setCameraMode('third');
 
   /* ═══════ PIXELATION PIPELINE ═══════ */
@@ -148,31 +150,43 @@ initMobileControls(); // <-- Thêm dòng này
   const farmRaycaster = new THREE.Raycaster();
   const farmMouse = new THREE.Vector2();
 
-  G.renderer.domElement.addEventListener('click', (e) => {
+    G.renderer.domElement.addEventListener('click', (e) => {
     if (G.cameraMode === 'first' || e.button !== 0) return;
-    
-    // Nếu đang trong UI thì bỏ qua
     if (e.target !== G.renderer.domElement) return;
 
     farmMouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     farmMouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     farmRaycaster.setFromCamera(farmMouse, G.camera);
 
-    // Quét va chạm với các ô đất
+    // --- 1. Ưu tiên kiểm tra Thang Máy trước ---
+    // (Chúng ta sẽ tìm tất cả các mesh trong tòa nhà)
+    const sceneObjects = [];
+    G.scene.traverse(obj => {
+      if (obj.userData.isElevatorBtn) sceneObjects.push(obj);
+    });
+
+    const elevatorIntersects = farmRaycaster.intersectObjects(sceneObjects);
+    if (elevatorIntersects.length > 0) {
+      e.stopImmediatePropagation();
+      document.getElementById('elevatorPanel').style.display = 'block';
+      return;
+    }
+
+    // --- 2. Kiểm tra Nông trại ---
     const farmMeshes = FarmManager.meshes.flat();
     if (farmMeshes.length > 0) {
       const intersects = farmRaycaster.intersectObjects(farmMeshes);
       if (intersects.length > 0) {
-        // Ngăn không cho nhân vật đi bộ tới điểm này
         e.stopImmediatePropagation(); 
-        
         const hitMesh = intersects[0].object;
         const currentItem = InventoryManager.getSelectedItem();
         FarmManager.interactWithTile(hitMesh, currentItem);
         return;
       }
     }
-  }, true); // Dùng capture phase để chạy trước sự kiện click của ui.js
+  }, true);
+
+// Dùng capture phase để chạy trước sự kiện click của ui.js
 
   /* ═══════ PHÍM TẮT NÔNG TRẠI (1, 2, 3, Z) ═══════ */
   window.addEventListener('keydown', (e) => {

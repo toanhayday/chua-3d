@@ -79,6 +79,32 @@ export function bindUI(rituals) {
     tapMo, lightIncense, offerItem
   } = rituals;
 
+  // ═══════ THANG MÁY UI ═══════
+  const elevatorPanel = document.getElementById('elevatorPanel');
+  const elevatorGrid = document.getElementById('elevatorGrid');
+  
+  // Sinh nút từ 1 đến 20
+  for (let i = 1; i <= 20; i++) {
+    const btn = document.createElement('button');
+    btn.innerText = i;
+    btn.style.cssText = 'padding:10px; background:#fff; border:1px solid #8b6f47; border-radius:8px; cursor:pointer; font-weight:bold; color:#3d2b17;';
+    btn.onmouseover = () => btn.style.background = '#f0d890';
+    btn.onmouseout = () => btn.style.background = '#fff';
+    btn.addEventListener('click', () => {
+      elevatorPanel.style.display = 'none';
+      EventBus.emit('ElevatorGoTo', i); // Phát sự kiện cho OfficeManager
+    });
+    elevatorGrid.appendChild(btn);
+  }
+
+  document.getElementById('closeElevator').addEventListener('click', () => {
+    elevatorPanel.style.display = 'none';
+  });
+
+  // Mở thang máy khi click vào nút đỏ trong game
+  window.addEventListener('click', (e) => {
+    // Logic raycast tìm nút bấm được xử lý ở main.js
+  });
   /* ─────── 3.1. INFO PANEL COLLAPSE ─────── */
   const infoToggle = document.getElementById('infoToggle');
   infoToggle?.addEventListener('click', () => {
